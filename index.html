@@ -630,44 +630,46 @@
   .image-node.selected .image-controls { display: flex; }
   .image-controls {
     display: none;
-    position: absolute;
-    top: -34px;
-    left: 0;
+    position: fixed;        /* fixed → viewport'a göre, clip yok */
     gap: 3px;
     background: var(--bg-elevated);
     border: 1px solid var(--border);
     border-radius: 6px;
-    padding: 3px 5px;
-    z-index: 200;
+    padding: 4px 6px;
+    z-index: 9000;
     align-items: center;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
     white-space: nowrap;
     pointer-events: auto;
   }
   .image-controls button {
-    background: transparent;
-    border: 1px solid transparent;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
     border-radius: 4px;
     color: var(--text-muted);
-    font-size: 11px;
+    font-size: 12px;
     cursor: pointer;
-    padding: 2px 7px;
+    padding: 4px 9px;
     font-family: 'Inter', sans-serif;
     font-weight: 600;
     transition: all 0.12s;
     white-space: nowrap;
+    min-height: 28px;
+    min-width: 28px;
+    -webkit-tap-highlight-color: transparent;
   }
-  .image-controls button:hover {
-    background: var(--bg-overlay);
-    border-color: var(--border);
+  .image-controls button:hover, .image-controls button:active {
+    background: var(--bg-surface);
+    border-color: var(--accent);
     color: var(--text-primary);
   }
-  .image-controls button.ic-delete { color: var(--red); }
-  .image-controls .ic-sep { width:1px; height:14px; background:var(--border); margin:0 2px; }
+  .image-controls button.ic-delete { color: var(--red); border-color: rgba(248,81,73,0.3); }
+  .image-controls button.ic-delete:hover { background: var(--red-dim); border-color: var(--red); }
+  .image-controls .ic-sep { width:1px; height:16px; background:var(--border); margin:0 2px; flex-shrink:0; }
   /* 8 resize tutacağı */
   .img-resize-handle {
     position: absolute;
-    width: 10px; height: 10px;
+    width: 14px; height: 14px;
     background: #3b82f6;
     border: 2px solid #fff;
     border-radius: 50%;
@@ -675,21 +677,23 @@
     z-index: 30;
     pointer-events: auto;
     box-sizing: border-box;
+    touch-action: none;
   }
   .image-node.selected .img-resize-handle { display: block; }
-  .img-resize-handle.nw { top:-5px;  left:-5px;  cursor: nw-resize; }
-  .img-resize-handle.n  { top:-5px;  left:calc(50% - 5px); cursor: n-resize; }
-  .img-resize-handle.ne { top:-5px;  right:-5px; cursor: ne-resize; }
-  .img-resize-handle.e  { top:calc(50% - 5px); right:-5px; cursor: e-resize; }
-  .img-resize-handle.se { bottom:-5px; right:-5px; cursor: se-resize; }
-  .img-resize-handle.s  { bottom:-5px; left:calc(50% - 5px); cursor: s-resize; }
-  .img-resize-handle.sw { bottom:-5px; left:-5px; cursor: sw-resize; }
-  .img-resize-handle.w  { top:calc(50% - 5px); left:-5px; cursor: w-resize; }
+  .img-resize-handle.nw { top:-7px;  left:-7px;  cursor: nw-resize; }
+  .img-resize-handle.n  { top:-7px;  left:calc(50% - 7px); cursor: n-resize; }
+  .img-resize-handle.ne { top:-7px;  right:-7px; cursor: ne-resize; }
+  .img-resize-handle.e  { top:calc(50% - 7px); right:-7px; cursor: e-resize; }
+  .img-resize-handle.se { bottom:-7px; right:-7px; cursor: se-resize; }
+  .img-resize-handle.s  { bottom:-7px; left:calc(50% - 7px); cursor: s-resize; }
+  .img-resize-handle.sw { bottom:-7px; left:-7px; cursor: sw-resize; }
+  .img-resize-handle.w  { top:calc(50% - 7px); left:-7px; cursor: w-resize; }
   /* opacity slider */
   .image-controls input[type=range] {
-    width: 60px;
+    width: 55px;
     accent-color: var(--blue);
     cursor: pointer;
+    min-height: 20px;
   }
 </style>
 </head>
@@ -1035,7 +1039,6 @@
   function createImageNode(tlc, imgSrc, pctX, pctY) {
     const node = document.createElement('div');
     node.className = 'image-node selected';
-    // Varsayılan boyut: sayfanın %30'u genişlik
     const tlcW = tlc.getBoundingClientRect().width || 400;
     const defaultW = Math.round(tlcW * 0.30);
     node.style.left   = pctX + '%';
@@ -1043,13 +1046,22 @@
     node.style.width  = defaultW + 'px';
     node.style.height = 'auto';
 
-    /* kontrol çubuğu */
+    /* kontrol çubuğu — fixed pozisyon, JS ile güncellenir */
     const controls = document.createElement('div');
     controls.className = 'image-controls';
+    document.body.appendChild(controls); // body'e ekle → overflow clip yok
+
+    function updateControlsPos() {
+      if (!node.classList.contains('selected')) return;
+      const nr = node.getBoundingClientRect();
+      const top = Math.max(4, nr.top - 42);
+      controls.style.top  = top + 'px';
+      controls.style.left = nr.left + 'px';
+    }
 
     const lblOpacity = document.createElement('span');
     lblOpacity.textContent = '⬛';
-    lblOpacity.style.cssText = 'font-size:10px;color:var(--text-muted);';
+    lblOpacity.style.cssText = 'font-size:11px;color:var(--text-muted);flex-shrink:0;';
 
     const sliderOpacity = document.createElement('input');
     sliderOpacity.type = 'range'; sliderOpacity.min = 10; sliderOpacity.max = 100; sliderOpacity.value = 100;
@@ -1078,7 +1090,7 @@
     const img = document.createElement('img');
     img.src = imgSrc;
     img.draggable = false;
-    img.style.opacity = '1';
+    img.style.cssText = 'width:100%;height:100%;display:block;pointer-events:none;border-radius:2px;';
 
     /* 8 resize tutacağı */
     const handles = ['nw','n','ne','e','se','s','sw','w'].map(dir => {
@@ -1088,16 +1100,26 @@
       return h;
     });
 
-    node.appendChild(controls);
     node.appendChild(img);
     handles.forEach(h => node.appendChild(h));
     tlc.appendChild(node);
 
     /* state */
     let flipH = false, flipV = false;
-
     function applyTransform() {
       img.style.transform = `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
+    }
+
+    /* seç / kaldır */
+    function selectNode() {
+      deselectAllImageNodes();
+      node.classList.add('selected');
+      controls.style.display = 'flex';
+      updateControlsPos();
+    }
+    function deselect() {
+      node.classList.remove('selected');
+      controls.style.display = 'none';
     }
 
     /* ── sürükleme ── */
@@ -1108,87 +1130,66 @@
       return { cx: e.clientX, cy: e.clientY };
     }
 
-    node.addEventListener('mousedown', de => {
+    function onNodeDown(de) {
       if (de.target.classList.contains('img-resize-handle')) return;
-      if (de.target.tagName === 'BUTTON' || de.target.tagName === 'INPUT') return;
-      deselectAllImageNodes();
-      node.classList.add('selected');
+      selectNode();
       dragging = true;
       const { cx, cy } = getXY(de);
       const r = node.getBoundingClientRect();
       dragOX = cx - r.left; dragOY = cy - r.top;
       de.preventDefault(); de.stopPropagation();
-    });
-    node.addEventListener('touchstart', de => {
-      if (de.target.classList.contains('img-resize-handle')) return;
-      deselectAllImageNodes();
-      node.classList.add('selected');
-      dragging = true;
-      const { cx, cy } = getXY(de);
-      const r = node.getBoundingClientRect();
-      dragOX = cx - r.left; dragOY = cy - r.top;
-      de.preventDefault(); de.stopPropagation();
-    }, { passive: false });
+    }
+    node.addEventListener('mousedown',  onNodeDown);
+    node.addEventListener('touchstart', onNodeDown, { passive: false });
 
-    document.addEventListener('mousemove', me => {
+    function onDragMove(me) {
       if (!dragging) return;
       const { cx, cy } = getXY(me);
       const rect = tlc.getBoundingClientRect();
-      const nx = ((cx - dragOX - rect.left) / rect.width) * 100;
+      const nx = ((cx - dragOX - rect.left) / rect.width)  * 100;
       const ny = ((cy - dragOY - rect.top)  / rect.height) * 100;
       node.style.left = Math.max(0, Math.min(95, nx)) + '%';
       node.style.top  = Math.max(0, Math.min(95, ny)) + '%';
-    });
-    document.addEventListener('touchmove', me => {
-      if (!dragging) return;
-      const { cx, cy } = getXY(me);
-      const rect = tlc.getBoundingClientRect();
-      const nx = ((cx - dragOX - rect.left) / rect.width) * 100;
-      const ny = ((cy - dragOY - rect.top)  / rect.height) * 100;
-      node.style.left = Math.max(0, Math.min(95, nx)) + '%';
-      node.style.top  = Math.max(0, Math.min(95, ny)) + '%';
-      me.preventDefault();
-    }, { passive: false });
+      updateControlsPos();
+      if (me.cancelable) me.preventDefault();
+    }
+    document.addEventListener('mousemove',  onDragMove);
+    document.addEventListener('touchmove',  onDragMove, { passive: false });
     document.addEventListener('mouseup',  () => { dragging = false; });
     document.addEventListener('touchend', () => { dragging = false; });
 
     /* ── 8 yönlü resize ── */
     handles.forEach(handle => {
-      let resizing = false;
-      let rStartX, rStartY, rStartW, rStartH, rStartLeft, rStartTop;
+      let resizing = false, rSX, rSY, rSW, rSH, rSL, rST;
 
       function beginResize(re) {
         resizing = true;
         const { cx, cy } = getXY(re);
-        rStartX = cx; rStartY = cy;
-        rStartW = node.offsetWidth;
-        rStartH = node.offsetHeight;
+        rSX = cx; rSY = cy;
+        rSW = node.offsetWidth; rSH = node.offsetHeight;
         const tlcRect = tlc.getBoundingClientRect();
-        rStartLeft = (parseFloat(node.style.left) / 100) * tlcRect.width;
-        rStartTop  = (parseFloat(node.style.top)  / 100) * tlcRect.height;
+        rSL = (parseFloat(node.style.left) / 100) * tlcRect.width;
+        rST = (parseFloat(node.style.top)  / 100) * tlcRect.height;
         re.preventDefault(); re.stopPropagation();
       }
-
       function doResize(me) {
         if (!resizing) return;
         const { cx, cy } = getXY(me);
-        const dx = cx - rStartX, dy = cy - rStartY;
+        const dx = cx - rSX, dy = cy - rSY;
         const dir = handle.dataset.dir;
         const tlcRect = tlc.getBoundingClientRect();
-        let newW = rStartW, newH = rStartH, newL = rStartLeft, newT = rStartTop;
-
-        if (dir.includes('e'))  newW = Math.max(40, rStartW + dx);
-        if (dir.includes('s'))  newH = Math.max(40, rStartH + dy);
-        if (dir.includes('w')) { newW = Math.max(40, rStartW - dx); newL = rStartLeft + (rStartW - newW); }
-        if (dir.includes('n')) { newH = Math.max(40, rStartH - dy); newT = rStartTop  + (rStartH - newH); }
-
-        node.style.width  = newW + 'px';
-        node.style.height = newH + 'px';
-        node.style.left   = ((newL / tlcRect.width)  * 100) + '%';
-        node.style.top    = ((newT / tlcRect.height) * 100) + '%';
-        me.preventDefault();
+        let nW = rSW, nH = rSH, nL = rSL, nT = rST;
+        if (dir.includes('e'))  nW = Math.max(40, rSW + dx);
+        if (dir.includes('s'))  nH = Math.max(40, rSH + dy);
+        if (dir.includes('w')) { nW = Math.max(40, rSW - dx); nL = rSL + (rSW - nW); }
+        if (dir.includes('n')) { nH = Math.max(40, rSH - dy); nT = rST + (rSH - nH); }
+        node.style.width  = nW + 'px';
+        node.style.height = nH + 'px';
+        node.style.left   = ((nL / tlcRect.width)  * 100) + '%';
+        node.style.top    = ((nT / tlcRect.height) * 100) + '%';
+        updateControlsPos();
+        if (me.cancelable) me.preventDefault();
       }
-
       function endResize() { resizing = false; }
 
       handle.addEventListener('mousedown',  beginResize);
@@ -1199,37 +1200,64 @@
       document.addEventListener('touchend',   endResize);
     });
 
-    /* ── kontroller ── */
+    /* ── kontrol butonları — touchend ile çalışır (mobil için) ── */
+    function onBtnTouch(fn) {
+      return function(e) { e.stopPropagation(); e.preventDefault(); fn(); };
+    }
+
     sliderOpacity.addEventListener('mousedown', e => e.stopPropagation());
+    sliderOpacity.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
     sliderOpacity.addEventListener('input', e => { img.style.opacity = e.target.value / 100; });
 
-    btnFlipH.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
-    btnFlipH.addEventListener('click', e => { e.stopPropagation(); flipH = !flipH; applyTransform(); });
-
-    btnFlipV.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
-    btnFlipV.addEventListener('click', e => { e.stopPropagation(); flipV = !flipV; applyTransform(); });
-
-    btnDup.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
-    btnDup.addEventListener('click', e => {
-      e.stopPropagation();
-      const nl = parseFloat(node.style.left) + 2;
-      const nt = parseFloat(node.style.top) + 2;
-      const dup = createImageNode(tlc, imgSrc, nl, nt);
-      dup.style.width  = node.style.width;
-      dup.style.height = node.style.height;
+    [btnFlipH, btnFlipV, btnDup, btnDel].forEach(b => {
+      b.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+      b.addEventListener('touchstart', e => { e.stopPropagation(); }, { passive: true });
     });
 
-    btnDel.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
-    btnDel.addEventListener('click', e => { e.stopPropagation(); node.remove(); });
+    btnFlipH.addEventListener('click',    () => { flipH = !flipH; applyTransform(); });
+    btnFlipH.addEventListener('touchend', onBtnTouch(() => { flipH = !flipH; applyTransform(); }));
+
+    btnFlipV.addEventListener('click',    () => { flipV = !flipV; applyTransform(); });
+    btnFlipV.addEventListener('touchend', onBtnTouch(() => { flipV = !flipV; applyTransform(); }));
+
+    btnDup.addEventListener('click',    () => {
+      const nl = parseFloat(node.style.left) + 2, nt = parseFloat(node.style.top) + 2;
+      const dup = createImageNode(tlc, imgSrc, nl, nt);
+      dup.style.width = node.style.width; dup.style.height = node.style.height;
+    });
+    btnDup.addEventListener('touchend', onBtnTouch(() => {
+      const nl = parseFloat(node.style.left) + 2, nt = parseFloat(node.style.top) + 2;
+      const dup = createImageNode(tlc, imgSrc, nl, nt);
+      dup.style.width = node.style.width; dup.style.height = node.style.height;
+    }));
+
+    btnDel.addEventListener('click',    () => { controls.remove(); node.remove(); });
+    btnDel.addEventListener('touchend', onBtnTouch(() => { controls.remove(); node.remove(); }));
+
+    /* dışarı tıklayınca seçimi kaldır */
+    document.addEventListener('mousedown', e => {
+      if (!node.contains(e.target) && !controls.contains(e.target)) deselect();
+    });
+    document.addEventListener('touchstart', e => {
+      if (!node.contains(e.target) && !controls.contains(e.target)) deselect();
+    }, { passive: true });
 
     /* tıklama ile seç */
     node.addEventListener('click', e => {
-      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
       e.stopPropagation();
-      deselectAllImageNodes();
-      node.classList.add('selected');
+      selectNode();
     });
 
+    /* scroll sırasında kontrol çubuğu pozisyonunu güncelle */
+    workspace.addEventListener('scroll', updateControlsPos, { passive: true });
+
+    /* node silinince controls da temizle */
+    const observer = new MutationObserver(() => {
+      if (!document.body.contains(node)) { controls.remove(); observer.disconnect(); }
+    });
+    observer.observe(tlc, { childList: true });
+
+    selectNode();
     return node;
   }
 

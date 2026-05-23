@@ -1,0 +1,1929 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MuGöl PDF</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<!-- jsPDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- docx — UMD build, window.docx olarak yüklenir -->
+<script src="https://unpkg.com/docx@7.8.2/build/index.umd.js"></script>
+
+<style>
+  :root {
+    --bg-base:       #0d1117;
+    --bg-surface:    #161b22;
+    --bg-elevated:   #1c2128;
+    --bg-overlay:    #21262d;
+    --bg-workspace:  #10151c;
+    --accent:        #10b981;
+    --accent-dim:    rgba(16,185,129,0.15);
+    --accent-hover:  #059669;
+    --accent-glow:   0 0 16px rgba(16,185,129,0.35);
+    --border:        #30363d;
+    --border-light:  #21262d;
+    --text-primary:  #e6edf3;
+    --text-muted:    #8b949e;
+    --text-subtle:   #484f58;
+    --red:           #f85149;
+    --red-dim:       rgba(248,81,73,0.15);
+    --amber:         #d29922;
+    --blue:          #58a6ff;
+    --purple:        #bc8cff;
+    --page-shadow:   0 0 0 1px rgba(255,255,255,0.05), 0 8px 40px rgba(0,0,0,0.6);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-base);
+    color: var(--text-primary);
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    max-width: 100vw;
+  }
+
+  /* ─── TITLE BAR ─── */
+  #titlebar {
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  /* accent underline strip */
+  #titlebar::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), #3b82f6, var(--purple));
+    pointer-events: none;
+  }
+
+  /* top row: logo + title */
+  #titlebar-top {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    height: 42px;
+    gap: 8px;
+    overflow: hidden;
+  }
+
+  /* bottom row: action buttons, horizontally scrollable */
+  .title-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+  .title-actions::-webkit-scrollbar { display: none; }
+
+  #app-logo {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  #app-logo .logo-badge {
+    background: linear-gradient(135deg, var(--accent), #3b82f6);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  #doc-title-display {
+    flex: 1;
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 4px 10px;
+    min-width: 0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: border-color 0.2s;
+  }
+
+  .title-btn {
+    background: var(--bg-overlay);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .title-btn:hover {
+    background: var(--bg-elevated);
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+  .title-btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .title-btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); box-shadow: var(--accent-glow); }
+  .title-btn.blue { background: rgba(88,166,255,0.15); border-color: rgba(88,166,255,0.4); color: var(--blue); }
+  .title-btn.blue:hover { background: rgba(88,166,255,0.25); border-color: var(--blue); }
+  .title-btn.purple { background: rgba(188,140,255,0.15); border-color: rgba(188,140,255,0.4); color: var(--purple); }
+  .title-btn.purple:hover { background: rgba(188,140,255,0.25); border-color: var(--purple); }
+  .title-btn.amber { background: rgba(210,153,34,0.15); border-color: rgba(210,153,34,0.4); color: var(--amber); }
+  .title-btn.amber:hover { background: rgba(210,153,34,0.25); border-color: var(--amber); }
+  .title-btn.danger { background: var(--red-dim); border-color: rgba(248,81,73,0.3); color: var(--red); }
+  .title-btn.danger:hover { background: rgba(248,81,73,0.25); border-color: var(--red); }
+
+  /* labels always visible — scrollable row handles overflow */
+
+  /* ─── TOOLBAR ─── */
+  #toolbar {
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    height: 46px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  #toolbar::-webkit-scrollbar { display: none; }
+
+  .tb-sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 5px;
+    flex-shrink: 0;
+  }
+
+  .tb-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    width: 32px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    transition: all 0.12s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .tb-btn:hover {
+    background: var(--bg-overlay);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .tb-btn.active {
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .tb-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; }
+
+  .tb-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 300;
+    font-family: 'Inter', sans-serif;
+  }
+
+  #zoom-level {
+    min-width: 42px;
+    text-align: center;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .tb-color-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 0 4px;
+  }
+  .tb-color-wrap input[type="color"] {
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    padding: 2px;
+    background: var(--bg-overlay);
+  }
+  .tb-color-wrap input[type="range"] {
+    width: 72px;
+    cursor: pointer;
+    accent-color: var(--accent);
+  }
+  .tb-select {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-overlay);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--text-primary);
+    padding: 2px 6px;
+    height: 28px;
+    cursor: pointer;
+    outline: none;
+    flex-shrink: 0;
+  }
+  .tb-select:focus { border-color: var(--accent); }
+  .tb-number {
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg-overlay);
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--text-primary);
+    padding: 2px 4px;
+    height: 28px;
+    width: 46px;
+    text-align: center;
+    outline: none;
+    flex-shrink: 0;
+  }
+  .tb-number:focus { border-color: var(--accent); }
+
+  /* ─── WORKSPACE ─── */
+  #workspace {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    background: var(--bg-workspace);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 0 48px;
+    gap: 24px;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+  #workspace::-webkit-scrollbar { width: 6px; }
+  #workspace::-webkit-scrollbar-track { background: transparent; }
+  #workspace::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  #workspace::-webkit-scrollbar-thumb:hover { background: var(--text-subtle); }
+
+  /* Empty state */
+  #empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 60px;
+    color: var(--text-subtle);
+    text-align: center;
+    gap: 16px;
+  }
+  #empty-state .icon-ring {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #empty-state svg { color: var(--text-subtle); }
+  #empty-state p { font-size: 14px; font-family: 'Inter', sans-serif; color: var(--text-muted); }
+  #empty-state small { font-size: 12px; color: var(--text-subtle); }
+
+  /* Page wrapper */
+  .pdf-page-wrapper {
+    position: relative;
+    box-shadow: var(--page-shadow);
+    background-color: white;
+    border-radius: 3px;
+    transition: width 0.15s ease;
+    transform-origin: top center;
+    outline: 1px solid rgba(255,255,255,0.06);
+  }
+  .pdf-canvas, .draw-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+
+  /* Pan / draw cursor */
+  #workspace.pan-mode .draw-layer { pointer-events: none; touch-action: auto; }
+  #workspace.drawing-mode .draw-layer { pointer-events: auto; touch-action: none; cursor: crosshair; }
+
+  /* Delete page button */
+  .del-page-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--red);
+    color: #fff;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    border: none;
+    border-radius: 5px;
+    padding: 3px 9px;
+    cursor: pointer;
+    z-index: 50;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .pdf-page-wrapper:hover .del-page-btn { opacity: 1; }
+  .del-page-btn:hover { background: #c93f38; }
+
+  /* ─── STATUS BAR ─── */
+  #statusbar {
+    background: var(--bg-surface);
+    color: var(--text-subtle);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    height: 24px;
+    font-size: 10.5px;
+    font-family: 'Inter', sans-serif;
+    gap: 10px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  #statusbar::-webkit-scrollbar { display: none; }
+  #statusbar .s-accent { color: var(--accent); font-weight: 600; }
+  .status-sep { color: var(--border); }
+
+  /* ─── LOADING ─── */
+  #loading {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    padding: 18px 28px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    align-items: center;
+    gap: 12px;
+    min-width: 210px;
+  }
+  #loading.visible { display: flex; }
+  #loading svg { animation: spin 1s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ─── MODALS ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+    padding: 24px 22px;
+    min-width: min(340px, 92vw);
+    max-width: 480px;
+    width: 92%;
+    animation: modalIn 0.18s ease;
+  }
+  @keyframes modalIn {
+    from { transform: scale(0.94) translateY(-8px); opacity: 0; }
+    to   { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .modal h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 17px;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+  }
+  .modal p { font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 10px; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  .modal-btn {
+    padding: 7px 18px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .modal-btn.cancel {
+    background: var(--bg-overlay);
+    border-color: var(--border);
+    color: var(--text-muted);
+  }
+  .modal-btn.cancel:hover { border-color: var(--text-muted); color: var(--text-primary); }
+  .modal-btn.confirm {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .modal-btn.confirm:hover { background: var(--accent-hover); box-shadow: var(--accent-glow); }
+
+  /* ─── METİN KATMANI (CANVA TARZI) ─── */
+  .text-layer-container {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .text-layer-container.active-text-mode {
+    pointer-events: auto;
+    cursor: crosshair;
+  }
+
+  .text-node {
+    position: absolute;
+    min-width: 60px;
+    min-height: 28px;
+    cursor: grab;
+    user-select: none;
+    pointer-events: auto;
+    box-sizing: border-box;
+  }
+  .text-node:active { cursor: grabbing; }
+  .text-node.editing { cursor: text; }
+  .text-node .text-content {
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.45;
+    pointer-events: none;
+    padding: 4px 6px;
+    display: block;
+    min-width: 40px;
+    min-height: 20px;
+  }
+  .text-node .text-content[contenteditable="true"] {
+    outline: none;
+    white-space: pre-wrap;
+    cursor: text;
+    pointer-events: auto;
+  }
+
+  /* seçili durum */
+  .text-node.selected {
+    outline: 2px solid #10b981;
+    border-radius: 4px;
+    background: rgba(16,185,129,0.05);
+  }
+  .text-node.selected .text-controls {
+    display: flex;
+  }
+  .text-node.editing {
+    outline: 2px dashed #3b82f6;
+    border-radius: 4px;
+    background: rgba(59,130,246,0.07);
+  }
+
+  /* kontrol çubuğu */
+  .text-controls {
+    display: none;
+    position: absolute;
+    top: -34px;
+    left: 0;
+    gap: 3px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 5px;
+    z-index: 200;
+    align-items: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    pointer-events: auto;
+  }
+  .text-controls button {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .text-controls button:hover {
+    background: var(--bg-overlay);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .text-controls button.tc-edit { color: var(--blue); }
+  .text-controls button.tc-delete { color: var(--red); }
+  .text-controls button.tc-confirm { color: var(--accent); }
+  .text-controls .tc-sep {
+    width: 1px; height: 14px;
+    background: var(--border);
+    margin: 0 2px;
+  }
+  /* resize köşe tutacağı */
+  .text-resize-handle {
+    position: absolute;
+    bottom: -5px; right: -5px;
+    width: 12px; height: 12px;
+    background: #10b981;
+    border-radius: 2px;
+    cursor: se-resize;
+    display: none;
+    z-index: 20;
+    pointer-events: auto;
+  }
+  .text-node.selected .text-resize-handle { display: block; }
+
+  /* Metin aracı aktifken cursor ipucu */
+  #workspace.text-mode .text-layer-container {
+    pointer-events: auto;
+    cursor: text;
+  }
+  #workspace.text-mode .draw-layer { pointer-events: none; }
+
+  /* ─── RESİM KATMANI (CANVA TARZI) ─── */
+  .image-node {
+    position: absolute;
+    min-width: 40px;
+    min-height: 40px;
+    cursor: grab;
+    user-select: none;
+    pointer-events: auto;
+    box-sizing: border-box;
+  }
+  .image-node:active { cursor: grabbing; }
+  .image-node img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    pointer-events: none;
+    border-radius: 2px;
+  }
+  .image-node.selected {
+    outline: 2px solid #3b82f6;
+    border-radius: 4px;
+  }
+  .image-node.selected .image-controls { display: flex; }
+  .image-controls {
+    display: none;
+    position: absolute;
+    top: -34px;
+    left: 0;
+    gap: 3px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 5px;
+    z-index: 200;
+    align-items: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    white-space: nowrap;
+    pointer-events: auto;
+  }
+  .image-controls button {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 7px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .image-controls button:hover {
+    background: var(--bg-overlay);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .image-controls button.ic-delete { color: var(--red); }
+  .image-controls .ic-sep { width:1px; height:14px; background:var(--border); margin:0 2px; }
+  /* 8 resize tutacağı */
+  .img-resize-handle {
+    position: absolute;
+    width: 10px; height: 10px;
+    background: #3b82f6;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    display: none;
+    z-index: 30;
+    pointer-events: auto;
+    box-sizing: border-box;
+  }
+  .image-node.selected .img-resize-handle { display: block; }
+  .img-resize-handle.nw { top:-5px;  left:-5px;  cursor: nw-resize; }
+  .img-resize-handle.n  { top:-5px;  left:calc(50% - 5px); cursor: n-resize; }
+  .img-resize-handle.ne { top:-5px;  right:-5px; cursor: ne-resize; }
+  .img-resize-handle.e  { top:calc(50% - 5px); right:-5px; cursor: e-resize; }
+  .img-resize-handle.se { bottom:-5px; right:-5px; cursor: se-resize; }
+  .img-resize-handle.s  { bottom:-5px; left:calc(50% - 5px); cursor: s-resize; }
+  .img-resize-handle.sw { bottom:-5px; left:-5px; cursor: sw-resize; }
+  .img-resize-handle.w  { top:calc(50% - 5px); left:-5px; cursor: w-resize; }
+  /* opacity slider */
+  .image-controls input[type=range] {
+    width: 60px;
+    accent-color: var(--blue);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── TITLE BAR ─── -->
+<div id="titlebar">
+  <div id="titlebar-top">
+    <div id="app-logo">
+      <span>MuGöl</span>
+      <span class="logo-badge">PDF</span>
+    </div>
+    <div id="doc-title-display">PDF yüklenmedi</div>
+  </div>
+  <div class="title-actions">
+    <label for="upload" class="title-btn primary" style="cursor:pointer">
+      📁 <span class="title-btn-label">PDF Seç</span>
+    </label>
+    <input type="file" id="upload" accept="application/pdf" style="display:none">
+
+    <label for="imgToPdfUpload" class="title-btn blue" style="cursor:pointer">
+      🖼️ <span class="title-btn-label">Resim→PDF</span>
+    </label>
+    <input type="file" id="imgToPdfUpload" accept="image/*" multiple style="display:none">
+
+    <button id="pdfToWordBtn" class="title-btn purple">📝 <span class="title-btn-label">Word'e Çevir</span></button>
+    <button id="copyTextBtn" class="title-btn">📋 <span class="title-btn-label">Metni Kopyala</span></button>
+    <button id="addBlankPageBtn" class="title-btn amber">📄 <span class="title-btn-label">Boş Sayfa</span></button>
+    <button id="clearBtn" class="title-btn danger">🗑 <span class="title-btn-label">Çizimleri Temizle</span></button>
+    <button id="downloadBtn" class="title-btn primary">⬇ <span class="title-btn-label">PDF İndir</span></button>
+  </div>
+</div>
+
+<!-- ─── TOOLBAR ─── -->
+<div id="toolbar">
+  <!-- Zoom -->
+  <button class="tb-btn" id="zoomOut" title="Uzaklaştır">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 12H4"/></svg>
+  </button>
+  <span id="zoom-level">100%</span>
+  <button class="tb-btn" id="zoomIn" title="Yakınlaştır">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Geri al -->
+  <button class="tb-btn" id="undoBtn" title="Geri Al (Ctrl+Z)">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Araçlar -->
+  <button class="tb-btn active" id="tool_pan" title="Sayfayı Kaydır">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11"/></svg>
+  </button>
+  <button class="tb-btn" id="tool_pen" title="Kalem">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+  </button>
+  <button class="tb-btn" id="tool_highlighter" title="Vurgulayıcı">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10M5 16h14l-1.5-7h-11L5 16zm4-7V5a2 2 0 012-2h2a2 2 0 012 2v4"/></svg>
+  </button>
+  <button class="tb-btn" id="tool_eraser" title="Silgi">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+  </button>
+  <button class="tb-btn" id="tool_text" title="Metin Ekle — tıklayınca düzenlenebilir katman" style="font-weight:700;font-size:14px;font-family:'Space Grotesk',sans-serif;">T</button>
+  <button class="tb-btn" id="tool_rect" title="Dikdörtgen">
+    <svg viewBox="0 0 24 24" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+  </button>
+  <button class="tb-btn" id="tool_circle" title="Daire">
+    <svg viewBox="0 0 24 24" stroke-width="2"><circle cx="12" cy="12" r="8"/></svg>
+  </button>
+  <button class="tb-btn" id="tool_stamp" title="Resim Ekle" onclick="document.getElementById('imageUpload').click()">
+    <svg viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+  </button>
+  <input type="file" id="imageUpload" accept="image/*" style="display:none">
+
+  <div class="tb-sep"></div>
+
+  <!-- Renk & boyut -->
+  <div class="tb-color-wrap">
+    <input type="color" id="colorPicker" value="#ef4444" title="Renk">
+    <input type="range" id="brushSize" min="1" max="30" value="4" title="Fırça Boyutu">
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <select id="fontFamily" class="tb-select" title="Yazı Tipi">
+    <option value="Arial">Arial</option>
+    <option value="Times New Roman">Times</option>
+    <option value="Courier New">Courier</option>
+    <option value="Georgia">Georgia</option>
+  </select>
+  <input type="number" id="fontSize" value="18" min="10" max="100" class="tb-number" title="Yazı Boyutu">
+</div>
+
+<!-- ─── WORKSPACE ─── -->
+<div id="workspace" class="pan-mode">
+  <div id="empty-state">
+    <div class="icon-ring">
+      <svg width="36" height="36" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+    </div>
+    <p>Bir PDF veya Resim yükleyin</p>
+    <small>Üstteki "PDF Seç" butonunu kullanın</small>
+  </div>
+  <div id="pages-container" style="display:none;flex-direction:column;align-items:center;padding-bottom:80px;width:100%;gap:24px;"></div>
+</div>
+
+<!-- ─── STATUS BAR ─── -->
+<div id="statusbar">
+  <span class="s-accent">MuGöl PDF</span>
+  <span class="status-sep">·</span>
+  <span id="status-pages">Sayfa: —</span>
+  <span class="status-sep">·</span>
+  <span id="status-tool">Araç: Kaydır</span>
+  <span class="status-sep">·</span>
+  <span id="status-zoom">Zoom: 100%</span>
+</div>
+
+<!-- ─── LOADING ─── -->
+<div id="loading">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+    <circle cx="12" cy="12" r="10" stroke="rgba(16,185,129,0.2)"/>
+    <path d="M12 2a10 10 0 010 20" stroke="#10b981"/>
+  </svg>
+  <span id="loading-text">İşleniyor...</span>
+</div>
+
+<!-- ─── CONFIRM MODAL ─── -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h2 id="confirmTitle">Onay</h2>
+    <p id="confirmMsg"></p>
+    <div class="modal-footer">
+      <button class="modal-btn cancel" onclick="resolveConfirm(false)">İptal</button>
+      <button class="modal-btn confirm" onclick="resolveConfirm(true)">Evet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+  let pdfDoc = null;
+  let currentZoom = 1.0;
+  let currentTool = 'pan';
+  let undoStack = [];
+  let loadedStampImage = null;
+
+  const workspace = document.getElementById('workspace');
+  const pagesContainer = document.getElementById('pages-container');
+  const loadingEl = document.getElementById('loading');
+  const loadingText = document.getElementById('loading-text');
+  const emptyState = document.getElementById('empty-state');
+
+  // ─── CUSTOM CONFIRM ───
+  let confirmResolve = null;
+  function mugolConfirm(msg, title = 'Onay') {
+    return new Promise(res => {
+      confirmResolve = res;
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMsg').textContent = msg;
+      document.getElementById('confirmModal').classList.add('open');
+    });
+  }
+  function resolveConfirm(val) {
+    document.getElementById('confirmModal').classList.remove('open');
+    if (confirmResolve) { confirmResolve(val); confirmResolve = null; }
+  }
+
+  // ─── LOADING ───
+  function showLoading(msg) { loadingText.textContent = msg; loadingEl.classList.add('visible'); }
+  function hideLoading() { loadingEl.classList.remove('visible'); }
+
+  // ─── STATUS ───
+  function updateStatus() {
+    const pages = document.querySelectorAll('.pdf-page-wrapper').length;
+    document.getElementById('status-pages').textContent = 'Sayfa: ' + (pages || '—');
+    document.getElementById('status-tool').textContent = 'Araç: ' + toolLabel(currentTool);
+    document.getElementById('status-zoom').textContent = 'Zoom: ' + Math.round(currentZoom * 100) + '%';
+  }
+  function toolLabel(t) {
+    return { pan:'Kaydır', pen:'Kalem', highlighter:'Vurgulayıcı', eraser:'Silgi', text:'Metin', rect:'Dikdörtgen', circle:'Daire', stamp:'Resim' }[t] || t;
+  }
+
+  // ─── EMPTY STATE ───
+  function checkEmpty() {
+    const has = document.querySelectorAll('.pdf-page-wrapper').length > 0;
+    emptyState.style.display = has ? 'none' : 'flex';
+    pagesContainer.style.display = has ? 'flex' : 'none';
+  }
+
+  // ─── ARAÇ SEÇİMİ ───
+  const toolIds = ['pan','pen','highlighter','eraser','text','rect','circle','stamp'];
+  toolIds.forEach(t => {
+    document.getElementById('tool_' + t).addEventListener('click', (e) => {
+      if (t === 'stamp' && !loadedStampImage) return;
+      currentTool = t;
+      document.querySelectorAll('#toolbar .tb-btn').forEach(btn => btn.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+
+      workspace.classList.remove('pan-mode', 'drawing-mode', 'text-mode');
+      if (currentTool === 'pan') {
+        workspace.classList.add('pan-mode');
+        // text node'lar pan modunda da sürüklenebilir — sadece boş tlc alanı pointer-events: none
+        document.querySelectorAll('.text-layer-container').forEach(tlc => { tlc.style.pointerEvents = 'none'; });
+        document.querySelectorAll('.text-node').forEach(tn => { tn.style.pointerEvents = 'auto'; });
+        deselectAllTextNodes();
+      } else if (currentTool === 'text') {
+        workspace.classList.add('text-mode');
+        document.querySelectorAll('.text-layer-container').forEach(tlc => { tlc.style.pointerEvents = 'auto'; });
+        document.querySelectorAll('.draw-layer').forEach(dl => { dl.style.pointerEvents = 'none'; });
+      } else {
+        workspace.classList.add('drawing-mode');
+        document.querySelectorAll('.text-layer-container').forEach(tlc => { tlc.style.pointerEvents = 'none'; });
+        document.querySelectorAll('.text-node').forEach(tn => { tn.style.pointerEvents = 'auto'; });
+        document.querySelectorAll('.draw-layer').forEach(dl => { dl.style.pointerEvents = 'auto'; });
+        deselectAllTextNodes();
+      }
+      updateStatus();
+    });
+  });
+
+  // ─── ZOOM ───
+  document.getElementById('zoomIn').addEventListener('click', () => updateZoom(0.2));
+  document.getElementById('zoomOut').addEventListener('click', () => updateZoom(-0.2));
+  function updateZoom(step) {
+    const nz = currentZoom + step;
+    if (nz < 0.4 || nz > 4.0) return;
+    currentZoom = nz;
+    const zStr = Math.round(currentZoom * 100) + '%';
+    document.getElementById('zoom-level').textContent = zStr;
+    document.querySelectorAll('.pdf-page-wrapper').forEach(w => {
+      const origW = parseFloat(w.dataset.origW);
+      const origH = parseFloat(w.dataset.origH);
+      w.style.width = (origW * currentZoom) + 'px';
+      w.style.aspectRatio = `${origW} / ${origH}`;
+      w.style.height = 'auto';
+    });
+    updateStatus();
+  }
+
+  // ─── GERI ALMA ───
+  function saveState(canvas, ctx) {
+    undoStack.push({ ctx, data: ctx.getImageData(0, 0, canvas.width, canvas.height) });
+    if (undoStack.length > 20) undoStack.shift();
+  }
+  document.getElementById('undoBtn').addEventListener('click', performUndo);
+  document.addEventListener('keydown', e => { if (e.ctrlKey && e.key === 'z') performUndo(); });
+  function performUndo() {
+    if (undoStack.length > 0) {
+      const last = undoStack.pop();
+      last.ctx.putImageData(last.data, 0, 0);
+    }
+  }
+
+  // ─── PDF YÜKLEME ───
+  document.getElementById('upload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') return alert('Lütfen PDF seçin!');
+    document.getElementById('doc-title-display').textContent = file.name;
+    showLoading('PDF Yükleniyor...');
+    pagesContainer.innerHTML = '';
+    undoStack = [];
+    currentZoom = 1.0;
+    document.getElementById('zoom-level').textContent = '100%';
+
+    const fr = new FileReader();
+    fr.onload = function() {
+      const arr = new Uint8Array(this.result);
+      pdfjsLib.getDocument(arr).promise.then(pdf => {
+        pdfDoc = pdf;
+        renderAllPages().then(() => { hideLoading(); checkEmpty(); updateStatus(); });
+      }).catch(() => { alert('PDF bozuk veya okunamıyor.'); hideLoading(); });
+    };
+    fr.readAsArrayBuffer(file);
+    e.target.value = '';
+  });
+
+  // ─── SAYFALARI RENDER ET ───
+  async function renderAllPages() {
+    for (let i = 1; i <= pdfDoc.numPages; i++) await renderPage(i);
+  }
+
+  async function renderPage(num) {
+    const page = await pdfDoc.getPage(num);
+    const maxW = workspace.clientWidth - 48;
+    const unscaled = page.getViewport({ scale: 1.0 });
+    let fitScale = maxW / unscaled.width;
+    if (fitScale > 1.3) fitScale = 1.3;
+    const baseVP = page.getViewport({ scale: fitScale });
+    const renderVP = page.getViewport({ scale: fitScale * 2.0 });
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-page-wrapper';
+    wrapper.dataset.origW = baseVP.width;
+    wrapper.dataset.origH = baseVP.height;
+    wrapper.style.width = baseVP.width + 'px';
+    wrapper.style.aspectRatio = `${baseVP.width} / ${baseVP.height}`;
+    wrapper.style.height = 'auto';
+
+    const pdfCanvas = document.createElement('canvas');
+    pdfCanvas.className = 'pdf-canvas';
+    pdfCanvas.width = renderVP.width;
+    pdfCanvas.height = renderVP.height;
+
+    const drawCanvas = document.createElement('canvas');
+    drawCanvas.className = 'draw-layer';
+    drawCanvas.width = renderVP.width;
+    drawCanvas.height = renderVP.height;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-page-btn';
+    delBtn.textContent = '🗑 Sayfayı Sil';
+    delBtn.onclick = async () => {
+      if (await mugolConfirm('Bu sayfayı silmek istediğinize emin misiniz?', 'Sayfayı Sil')) {
+        wrapper.remove(); checkEmpty(); updateStatus();
+      }
+    };
+
+    const textLayerContainer = document.createElement('div');
+    textLayerContainer.className = 'text-layer-container';
+
+    wrapper.appendChild(pdfCanvas);
+    wrapper.appendChild(drawCanvas);
+    wrapper.appendChild(textLayerContainer);
+    wrapper.appendChild(delBtn);
+    pagesContainer.appendChild(wrapper);
+
+    await page.render({ canvasContext: pdfCanvas.getContext('2d'), viewport: renderVP }).promise;
+    setupDrawing(drawCanvas, drawCanvas.getContext('2d'), textLayerContainer);
+  }
+
+  // ─── RESİM KATMAN SİSTEMİ (CANVA TARZI) ───
+  function deselectAllImageNodes() {
+    document.querySelectorAll('.image-node.selected').forEach(n => n.classList.remove('selected'));
+  }
+
+  function createImageNode(tlc, imgSrc, pctX, pctY) {
+    const node = document.createElement('div');
+    node.className = 'image-node selected';
+    // Varsayılan boyut: sayfanın %30'u genişlik
+    const tlcW = tlc.getBoundingClientRect().width || 400;
+    const defaultW = Math.round(tlcW * 0.30);
+    node.style.left   = pctX + '%';
+    node.style.top    = pctY + '%';
+    node.style.width  = defaultW + 'px';
+    node.style.height = 'auto';
+
+    /* kontrol çubuğu */
+    const controls = document.createElement('div');
+    controls.className = 'image-controls';
+
+    const lblOpacity = document.createElement('span');
+    lblOpacity.textContent = '⬛';
+    lblOpacity.style.cssText = 'font-size:10px;color:var(--text-muted);';
+
+    const sliderOpacity = document.createElement('input');
+    sliderOpacity.type = 'range'; sliderOpacity.min = 10; sliderOpacity.max = 100; sliderOpacity.value = 100;
+    sliderOpacity.title = 'Opaklık';
+
+    const sep1 = document.createElement('div'); sep1.className = 'ic-sep';
+
+    const btnFlipH = document.createElement('button'); btnFlipH.textContent = '↔'; btnFlipH.title = 'Yatay Çevir';
+    const btnFlipV = document.createElement('button'); btnFlipV.textContent = '↕'; btnFlipV.title = 'Dikey Çevir';
+
+    const sep2 = document.createElement('div'); sep2.className = 'ic-sep';
+
+    const btnDup = document.createElement('button'); btnDup.textContent = '⧉'; btnDup.title = 'Çoğalt';
+    const btnDel = document.createElement('button'); btnDel.className = 'ic-delete'; btnDel.textContent = '🗑'; btnDel.title = 'Sil';
+
+    controls.appendChild(lblOpacity);
+    controls.appendChild(sliderOpacity);
+    controls.appendChild(sep1);
+    controls.appendChild(btnFlipH);
+    controls.appendChild(btnFlipV);
+    controls.appendChild(sep2);
+    controls.appendChild(btnDup);
+    controls.appendChild(btnDel);
+
+    /* resim */
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.draggable = false;
+    img.style.opacity = '1';
+
+    /* 8 resize tutacağı */
+    const handles = ['nw','n','ne','e','se','s','sw','w'].map(dir => {
+      const h = document.createElement('div');
+      h.className = 'img-resize-handle ' + dir;
+      h.dataset.dir = dir;
+      return h;
+    });
+
+    node.appendChild(controls);
+    node.appendChild(img);
+    handles.forEach(h => node.appendChild(h));
+    tlc.appendChild(node);
+
+    /* state */
+    let flipH = false, flipV = false;
+
+    function applyTransform() {
+      img.style.transform = `scaleX(${flipH ? -1 : 1}) scaleY(${flipV ? -1 : 1})`;
+    }
+
+    /* ── sürükleme ── */
+    let dragging = false, dragOX = 0, dragOY = 0;
+
+    function getXY(e) {
+      if (e.touches && e.touches.length > 0) return { cx: e.touches[0].clientX, cy: e.touches[0].clientY };
+      return { cx: e.clientX, cy: e.clientY };
+    }
+
+    node.addEventListener('mousedown', de => {
+      if (de.target.classList.contains('img-resize-handle')) return;
+      if (de.target.tagName === 'BUTTON' || de.target.tagName === 'INPUT') return;
+      deselectAllImageNodes();
+      node.classList.add('selected');
+      dragging = true;
+      const { cx, cy } = getXY(de);
+      const r = node.getBoundingClientRect();
+      dragOX = cx - r.left; dragOY = cy - r.top;
+      de.preventDefault(); de.stopPropagation();
+    });
+    node.addEventListener('touchstart', de => {
+      if (de.target.classList.contains('img-resize-handle')) return;
+      deselectAllImageNodes();
+      node.classList.add('selected');
+      dragging = true;
+      const { cx, cy } = getXY(de);
+      const r = node.getBoundingClientRect();
+      dragOX = cx - r.left; dragOY = cy - r.top;
+      de.preventDefault(); de.stopPropagation();
+    }, { passive: false });
+
+    document.addEventListener('mousemove', me => {
+      if (!dragging) return;
+      const { cx, cy } = getXY(me);
+      const rect = tlc.getBoundingClientRect();
+      const nx = ((cx - dragOX - rect.left) / rect.width) * 100;
+      const ny = ((cy - dragOY - rect.top)  / rect.height) * 100;
+      node.style.left = Math.max(0, Math.min(95, nx)) + '%';
+      node.style.top  = Math.max(0, Math.min(95, ny)) + '%';
+    });
+    document.addEventListener('touchmove', me => {
+      if (!dragging) return;
+      const { cx, cy } = getXY(me);
+      const rect = tlc.getBoundingClientRect();
+      const nx = ((cx - dragOX - rect.left) / rect.width) * 100;
+      const ny = ((cy - dragOY - rect.top)  / rect.height) * 100;
+      node.style.left = Math.max(0, Math.min(95, nx)) + '%';
+      node.style.top  = Math.max(0, Math.min(95, ny)) + '%';
+      me.preventDefault();
+    }, { passive: false });
+    document.addEventListener('mouseup',  () => { dragging = false; });
+    document.addEventListener('touchend', () => { dragging = false; });
+
+    /* ── 8 yönlü resize ── */
+    handles.forEach(handle => {
+      let resizing = false;
+      let rStartX, rStartY, rStartW, rStartH, rStartLeft, rStartTop;
+
+      function beginResize(re) {
+        resizing = true;
+        const { cx, cy } = getXY(re);
+        rStartX = cx; rStartY = cy;
+        rStartW = node.offsetWidth;
+        rStartH = node.offsetHeight;
+        const tlcRect = tlc.getBoundingClientRect();
+        rStartLeft = (parseFloat(node.style.left) / 100) * tlcRect.width;
+        rStartTop  = (parseFloat(node.style.top)  / 100) * tlcRect.height;
+        re.preventDefault(); re.stopPropagation();
+      }
+
+      function doResize(me) {
+        if (!resizing) return;
+        const { cx, cy } = getXY(me);
+        const dx = cx - rStartX, dy = cy - rStartY;
+        const dir = handle.dataset.dir;
+        const tlcRect = tlc.getBoundingClientRect();
+        let newW = rStartW, newH = rStartH, newL = rStartLeft, newT = rStartTop;
+
+        if (dir.includes('e'))  newW = Math.max(40, rStartW + dx);
+        if (dir.includes('s'))  newH = Math.max(40, rStartH + dy);
+        if (dir.includes('w')) { newW = Math.max(40, rStartW - dx); newL = rStartLeft + (rStartW - newW); }
+        if (dir.includes('n')) { newH = Math.max(40, rStartH - dy); newT = rStartTop  + (rStartH - newH); }
+
+        node.style.width  = newW + 'px';
+        node.style.height = newH + 'px';
+        node.style.left   = ((newL / tlcRect.width)  * 100) + '%';
+        node.style.top    = ((newT / tlcRect.height) * 100) + '%';
+        me.preventDefault();
+      }
+
+      function endResize() { resizing = false; }
+
+      handle.addEventListener('mousedown',  beginResize);
+      handle.addEventListener('touchstart', beginResize, { passive: false });
+      document.addEventListener('mousemove',  doResize);
+      document.addEventListener('touchmove',  doResize, { passive: false });
+      document.addEventListener('mouseup',    endResize);
+      document.addEventListener('touchend',   endResize);
+    });
+
+    /* ── kontroller ── */
+    sliderOpacity.addEventListener('mousedown', e => e.stopPropagation());
+    sliderOpacity.addEventListener('input', e => { img.style.opacity = e.target.value / 100; });
+
+    btnFlipH.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+    btnFlipH.addEventListener('click', e => { e.stopPropagation(); flipH = !flipH; applyTransform(); });
+
+    btnFlipV.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+    btnFlipV.addEventListener('click', e => { e.stopPropagation(); flipV = !flipV; applyTransform(); });
+
+    btnDup.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+    btnDup.addEventListener('click', e => {
+      e.stopPropagation();
+      const nl = parseFloat(node.style.left) + 2;
+      const nt = parseFloat(node.style.top) + 2;
+      const dup = createImageNode(tlc, imgSrc, nl, nt);
+      dup.style.width  = node.style.width;
+      dup.style.height = node.style.height;
+    });
+
+    btnDel.addEventListener('mousedown', e => { e.stopPropagation(); e.preventDefault(); });
+    btnDel.addEventListener('click', e => { e.stopPropagation(); node.remove(); });
+
+    /* tıklama ile seç */
+    node.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT') return;
+      e.stopPropagation();
+      deselectAllImageNodes();
+      node.classList.add('selected');
+    });
+
+    return node;
+  }
+
+  // ─── METİN + ÇİZİM KATMAN SİSTEMİ ───
+  let activeTextNode = null; // globally track selected text node
+
+  function deselectAllTextNodes() {
+    document.querySelectorAll('.text-node.selected, .text-node.editing').forEach(n => {
+      n.classList.remove('selected', 'editing');
+      const content = n.querySelector('.text-content');
+      if (content) { content.contentEditable = 'false'; content.style.pointerEvents = 'none'; }
+    });
+    activeTextNode = null;
+  }
+
+  function createTextNode(tlc, pctX, pctY) {
+    const fontSize  = parseInt(document.getElementById('fontSize').value) || 18;
+    const fontFamily = document.getElementById('fontFamily').value;
+    const color     = document.getElementById('colorPicker').value;
+
+    const node = document.createElement('div');
+    node.className = 'text-node selected';
+    node.style.left = pctX + '%';
+    node.style.top  = pctY + '%';
+    node.style.minWidth = '80px';
+
+    /* kontrol çubuğu */
+    const controls = document.createElement('div');
+    controls.className = 'text-controls';
+
+    const btnEdit   = document.createElement('button');
+    btnEdit.className = 'tc-edit'; btnEdit.textContent = '✏️ Düzenle';
+
+    const sep1 = document.createElement('div'); sep1.className = 'tc-sep';
+
+    const btnBold   = document.createElement('button'); btnBold.textContent = 'B'; btnBold.title = 'Kalın';
+    const btnItalic = document.createElement('button'); btnItalic.textContent = 'I'; btnItalic.title = 'İtalik'; btnItalic.style.fontStyle='italic';
+    const btnSm     = document.createElement('button'); btnSm.textContent = 'A−'; btnSm.title = 'Küçült';
+    const btnLg     = document.createElement('button'); btnLg.textContent = 'A+'; btnLg.title = 'Büyüt';
+
+    const sep2 = document.createElement('div'); sep2.className = 'tc-sep';
+
+    const btnDup    = document.createElement('button'); btnDup.textContent = '⧉'; btnDup.title = 'Çoğalt';
+    const btnDel    = document.createElement('button');
+    btnDel.className = 'tc-delete'; btnDel.textContent = '🗑';  btnDel.title = 'Sil';
+
+    controls.appendChild(btnEdit);
+    controls.appendChild(sep1);
+    controls.appendChild(btnBold);
+    controls.appendChild(btnItalic);
+    controls.appendChild(btnSm);
+    controls.appendChild(btnLg);
+    controls.appendChild(sep2);
+    controls.appendChild(btnDup);
+    controls.appendChild(btnDel);
+
+    /* metin içeriği */
+    const content = document.createElement('div');
+    content.className = 'text-content';
+    content.contentEditable = 'true';
+    content.style.fontFamily = fontFamily;
+    content.style.fontSize   = fontSize + 'px';
+    content.style.color      = color;
+    content.style.fontWeight = 'normal';
+    content.style.fontStyle  = 'normal';
+    content.style.pointerEvents = 'auto';
+    content.setAttribute('data-placeholder', 'Yazın...');
+    content.style.minWidth = '80px';
+    content.style.minHeight = (fontSize * 1.5) + 'px';
+
+    /* resize tutacağı */
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'text-resize-handle';
+
+    node.appendChild(controls);
+    node.appendChild(content);
+    node.appendChild(resizeHandle);
+    tlc.appendChild(node);
+
+    /* state */
+    let isBold = false, isItalic = false;
+    let curFontSize = fontSize;
+
+    /* ── sürükleme (mouse + touch) ── */
+    let dragging = false, dragOX = 0, dragOY = 0;
+
+    function getClientXY(e) {
+      if (e.touches && e.touches.length > 0) return { cx: e.touches[0].clientX, cy: e.touches[0].clientY };
+      return { cx: e.clientX, cy: e.clientY };
+    }
+
+    function startNodeDrag(de) {
+      // Düzenleme modundaysa veya buton/resize ise sürükleme yok
+      if (node.classList.contains('editing')) return;
+      if (de.target.tagName === 'BUTTON') return;
+      if (de.target === resizeHandle) return;
+      if (de.target === content && content.contentEditable === 'true' && node.classList.contains('editing')) return;
+
+      // Seç
+      deselectAllTextNodes();
+      node.classList.add('selected');
+      activeTextNode = node;
+
+      dragging = true;
+      const { cx, cy } = getClientXY(de);
+      const nodeRect = node.getBoundingClientRect();
+      dragOX = cx - nodeRect.left;
+      dragOY = cy - nodeRect.top;
+
+      de.preventDefault();
+      de.stopPropagation();
+    }
+
+    function onNodeDragMove(me) {
+      if (!dragging) return;
+      const { cx, cy } = getClientXY(me);
+      const rect = tlc.getBoundingClientRect();
+      const nx = ((cx - dragOX - rect.left) / rect.width) * 100;
+      const ny = ((cy - dragOY - rect.top) / rect.height) * 100;
+      node.style.left = Math.max(0, Math.min(96, nx)) + '%';
+      node.style.top  = Math.max(0, Math.min(96, ny)) + '%';
+      me.preventDefault();
+    }
+
+    function stopNodeDrag() { dragging = false; }
+
+    node.addEventListener('mousedown', startNodeDrag);
+    node.addEventListener('touchstart', startNodeDrag, { passive: false });
+    document.addEventListener('mousemove', onNodeDragMove);
+    document.addEventListener('touchmove', onNodeDragMove, { passive: false });
+    document.addEventListener('mouseup', stopNodeDrag);
+    document.addEventListener('touchend', stopNodeDrag);
+
+    /* ── resize ── */
+    let resizing = false, rStartX = 0, rStartY = 0, rStartW = 0, rStartH = 0;
+
+    function startResize(re) {
+      resizing = true;
+      const { cx, cy } = getClientXY(re);
+      rStartX = cx; rStartY = cy;
+      rStartW = node.offsetWidth; rStartH = node.offsetHeight;
+      re.preventDefault(); re.stopPropagation();
+    }
+    function onResizeMove(me) {
+      if (!resizing) return;
+      const { cx, cy } = getClientXY(me);
+      const dw = cx - rStartX, dh = cy - rStartY;
+      node.style.width     = Math.max(80, rStartW + dw) + 'px';
+      node.style.minHeight = Math.max(30, rStartH + dh) + 'px';
+      me.preventDefault();
+    }
+    function stopResize() { resizing = false; }
+
+    resizeHandle.addEventListener('mousedown', startResize);
+    resizeHandle.addEventListener('touchstart', startResize, { passive: false });
+    document.addEventListener('mousemove', onResizeMove);
+    document.addEventListener('touchmove', onResizeMove, { passive: false });
+    document.addEventListener('mouseup', stopResize);
+    document.addEventListener('touchend', stopResize);
+
+    /* ── kontrol butonu eylemleri ── */
+    btnEdit.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnEdit.addEventListener('click', ev => {
+      ev.stopPropagation();
+      node.classList.remove('selected');
+      node.classList.add('editing');
+      content.contentEditable = 'true';
+      content.style.pointerEvents = 'auto';
+      content.focus();
+      // imleci sona al
+      const range = document.createRange();
+      range.selectNodeContents(content);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+    });
+
+    btnBold.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnBold.addEventListener('click', ev => {
+      ev.stopPropagation();
+      isBold = !isBold;
+      content.style.fontWeight = isBold ? 'bold' : 'normal';
+      btnBold.style.background = isBold ? 'rgba(16,185,129,0.25)' : '';
+      btnBold.style.borderColor = isBold ? '#10b981' : '';
+    });
+
+    btnItalic.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnItalic.addEventListener('click', ev => {
+      ev.stopPropagation();
+      isItalic = !isItalic;
+      content.style.fontStyle = isItalic ? 'italic' : 'normal';
+      btnItalic.style.background = isItalic ? 'rgba(16,185,129,0.25)' : '';
+      btnItalic.style.borderColor = isItalic ? '#10b981' : '';
+    });
+
+    btnSm.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnSm.addEventListener('click', ev => {
+      ev.stopPropagation();
+      curFontSize = Math.max(8, curFontSize - 2);
+      content.style.fontSize = curFontSize + 'px';
+    });
+
+    btnLg.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnLg.addEventListener('click', ev => {
+      ev.stopPropagation();
+      curFontSize = Math.min(120, curFontSize + 2);
+      content.style.fontSize = curFontSize + 'px';
+    });
+
+    btnDup.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnDup.addEventListener('click', ev => {
+      ev.stopPropagation();
+      const nl = parseFloat(node.style.left) + 2;
+      const nt = parseFloat(node.style.top) + 2;
+      createTextNode(tlc, nl, nt);
+      const newNode = tlc.lastChild;
+      const newContent = newNode.querySelector('.text-content');
+      newContent.innerHTML = content.innerHTML;
+      newContent.style.cssText = content.style.cssText;
+      newContent.contentEditable = 'false';
+      newContent.style.pointerEvents = 'none';
+    });
+
+    btnDel.addEventListener('mousedown', ev => { ev.stopPropagation(); ev.preventDefault(); });
+    btnDel.addEventListener('click', ev => {
+      ev.stopPropagation();
+      node.remove();
+      activeTextNode = null;
+    });
+
+    /* ── düzenleme bitti: tıklama dışarıda ── */
+    content.addEventListener('blur', () => {
+      node.classList.remove('editing');
+      content.contentEditable = 'false';
+      content.style.pointerEvents = 'none';
+      if (!content.textContent.trim()) node.remove();
+    });
+
+    content.addEventListener('keydown', ke => {
+      if (ke.key === 'Escape') {
+        content.blur();
+      }
+      ke.stopPropagation();
+    });
+
+    /* ── tıklama: seç ── */
+    content.addEventListener('click', ev => {
+      if (node.classList.contains('editing')) { ev.stopPropagation(); return; }
+      ev.stopPropagation();
+      deselectAllTextNodes();
+      node.classList.add('selected');
+      activeTextNode = node;
+    });
+
+    /* odaklan */
+    setTimeout(() => {
+      node.classList.add('editing');
+      content.contentEditable = 'true';
+      content.style.pointerEvents = 'auto';
+      content.focus();
+    }, 30);
+
+    return node;
+  }
+
+  function setupDrawing(canvas, ctx, tlc) {
+    let isDrawing = false, startX = 0, startY = 0, snapshot = null;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      let cx = e.clientX, cy = e.clientY;
+      if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+      const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+      return { x: (cx - rect.left) * sx, y: (cy - rect.top) * sy };
+    }
+
+    function getPosPercent(e) {
+      const rect = tlc.getBoundingClientRect();
+      let cx = e.clientX, cy = e.clientY;
+      if (e.touches && e.touches.length > 0) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
+      return {
+        x: ((cx - rect.left) / rect.width) * 100,
+        y: ((cy - rect.top) / rect.height) * 100
+      };
+    }
+
+    /* text-layer container tıklamaları */
+    tlc.addEventListener('mousedown', e => {
+      if (currentTool !== 'text') return;
+      if (e.target !== tlc) return; // sadece boş alana tıklama
+      e.preventDefault(); e.stopPropagation();
+      deselectAllTextNodes();
+      const pct = getPosPercent(e);
+      createTextNode(tlc, pct.x, pct.y);
+    });
+
+    /* workspace'e tıklayınca seçimi kaldır */
+    workspace.addEventListener('mousedown', e => {
+      if (currentTool === 'text' && e.target === workspace || e.target === canvas) {
+        deselectAllTextNodes();
+      }
+    });
+
+    function startDraw(e) {
+      if (currentTool === 'pan' || currentTool === 'text' || currentTool === 'stamp') return;
+      const pos = getPos(e);
+
+      isDrawing = true; startX = pos.x; startY = pos.y;
+      saveState(canvas, ctx);
+      snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      ctx.beginPath(); ctx.moveTo(startX, startY);
+      if (e.type === 'touchstart') e.preventDefault();
+    }
+
+    function draw(e) {
+      if (!isDrawing || ['text','stamp','pan'].includes(currentTool)) return;
+      const pos = getPos(e);
+      const bs = document.getElementById('brushSize').value;
+      const color = document.getElementById('colorPicker').value;
+      ctx.globalAlpha = 1.0; ctx.globalCompositeOperation = 'source-over';
+
+      if (currentTool === 'eraser') {
+        ctx.globalCompositeOperation = 'destination-out'; ctx.lineWidth = bs * 3;
+        ctx.strokeStyle = 'rgba(0,0,0,1)'; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+      } else if (currentTool === 'highlighter') {
+        ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.4;
+        ctx.strokeStyle = color; ctx.lineWidth = bs * 4; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+      } else if (currentTool === 'pen') {
+        ctx.strokeStyle = color; ctx.lineWidth = bs; ctx.lineTo(pos.x, pos.y); ctx.stroke();
+      } else if (currentTool === 'rect') {
+        ctx.putImageData(snapshot, 0, 0); ctx.strokeStyle = color; ctx.lineWidth = bs;
+        ctx.beginPath(); ctx.rect(startX, startY, pos.x - startX, pos.y - startY); ctx.stroke();
+      } else if (currentTool === 'circle') {
+        ctx.putImageData(snapshot, 0, 0); ctx.strokeStyle = color; ctx.lineWidth = bs;
+        ctx.beginPath();
+        const rx = Math.abs(pos.x - startX) / 2, ry = Math.abs(pos.y - startY) / 2;
+        const cx2 = startX + (pos.x - startX) / 2, cy2 = startY + (pos.y - startY) / 2;
+        ctx.ellipse(cx2, cy2, rx, ry, 0, 0, 2 * Math.PI); ctx.stroke();
+      }
+      if (e.type === 'touchmove') e.preventDefault();
+    }
+    function stopDraw() { if (isDrawing) { ctx.closePath(); isDrawing = false; } }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mouseout', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, { passive: false });
+    canvas.addEventListener('touchmove', draw, { passive: false });
+    canvas.addEventListener('touchend', stopDraw);
+  }
+
+  // ─── ÇİZİMLERİ TEMİZLE ───
+  document.getElementById('clearBtn').addEventListener('click', async () => {
+    const layers = document.querySelectorAll('.draw-layer');
+    if (!layers.length) return;
+    if (await mugolConfirm('Tüm çizimleri silmek istediğinize emin misiniz?', 'Çizimleri Temizle')) {
+      layers.forEach(cv => { const ctx = cv.getContext('2d'); saveState(cv, ctx); ctx.clearRect(0, 0, cv.width, cv.height); });
+    }
+  });
+
+  // ─── BOŞ SAYFA EKLE ───
+  document.getElementById('addBlankPageBtn').addEventListener('click', () => {
+    const existing = document.querySelectorAll('.pdf-page-wrapper');
+    let w = 595.28, h = 841.89; // varsayılan A4
+    if (existing.length > 0) {
+      const last = existing[existing.length - 1];
+      const lw = parseFloat(last.dataset.origW);
+      const lh = parseFloat(last.dataset.origH);
+      if (lw > 0 && lh > 0) { w = lw; h = lh; }
+    }
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pdf-page-wrapper';
+    wrapper.dataset.origW = w; wrapper.dataset.origH = h;
+    wrapper.style.width = (w * currentZoom) + 'px';
+    wrapper.style.aspectRatio = `${w} / ${h}`;
+    wrapper.style.height = 'auto';
+
+    const pc = document.createElement('canvas');
+    pc.className = 'pdf-canvas';
+    pc.width = w * 2; pc.height = h * 2;
+    const pCtx = pc.getContext('2d');
+    pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pc.width, pc.height);
+
+    const dc = document.createElement('canvas');
+    dc.className = 'draw-layer';
+    dc.width = w * 2; dc.height = h * 2;
+
+    const tlc = document.createElement('div');
+    tlc.className = 'text-layer-container';
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-page-btn'; delBtn.textContent = '🗑 Sayfayı Sil';
+    delBtn.onclick = async () => {
+      if (await mugolConfirm('Bu sayfayı silmek istediğinize emin misiniz?', 'Sayfayı Sil')) {
+        wrapper.remove(); checkEmpty(); updateStatus();
+      }
+    };
+
+    wrapper.appendChild(pc); wrapper.appendChild(dc); wrapper.appendChild(tlc); wrapper.appendChild(delBtn);
+    pagesContainer.appendChild(wrapper);
+    setupDrawing(dc, dc.getContext('2d'), tlc);
+    wrapper.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    checkEmpty(); updateStatus();
+  });
+
+  // ─── METİN KOPYALA ───
+  document.getElementById('copyTextBtn').addEventListener('click', async () => {
+    if (!pdfDoc) return alert('Lütfen önce bir PDF yükleyin!');
+    showLoading('Metin Okunuyor...');
+    try {
+      let fullText = '';
+      for (let i = 1; i <= pdfDoc.numPages; i++) {
+        const page = await pdfDoc.getPage(i);
+        const tc = await page.getTextContent();
+        let lastY = -1, pageText = '';
+        tc.items.forEach(item => {
+          if (lastY !== item.transform[5] && lastY !== -1) pageText += '\n';
+          pageText += item.str; lastY = item.transform[5];
+        });
+        fullText += pageText.trim() + '\n\n';
+      }
+      if (fullText.trim().length < 5) {
+        alert('Yeterli metin bulunamadı. Bu doküman resim tabanlı olabilir.');
+      } else {
+        await navigator.clipboard.writeText(fullText.trim());
+        alert('Tüm metin panoya kopyalandı! 📋');
+      }
+    } catch (err) { console.error(err); alert('Metin kopyalanırken hata oluştu.'); }
+    hideLoading();
+  });
+
+  // ─── WORD'E ÇEVİR ───
+  function sanitizeTextForXML(text) {
+    return text.replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '');
+  }
+
+  // Tüm sayfalardaki DOM metin node'larını topla
+  function collectDomTextParagraphs(Paragraph, TextRun) {
+    const paragraphs = [];
+    document.querySelectorAll('.pdf-page-wrapper').forEach(wrapper => {
+      const nodes = wrapper.querySelectorAll('.text-node');
+      nodes.forEach(node => {
+        const content = node.querySelector('.text-content');
+        if (!content) return;
+        const text = content.innerText || content.textContent || '';
+        if (!text.trim()) return;
+        const cs = window.getComputedStyle(content);
+        const isBold   = cs.fontWeight >= 700 || cs.fontWeight === 'bold';
+        const isItalic = cs.fontStyle === 'italic';
+        const fSizePt  = Math.round(parseFloat(cs.fontSize) * 0.75) || 14;
+
+        text.split('\n').forEach(line => {
+          if (line.trim()) {
+            paragraphs.push(new Paragraph({
+              children: [new TextRun({
+                text: sanitizeTextForXML(line.trim()),
+                bold: isBold,
+                italics: isItalic,
+                size: fSizePt * 2, // half-points
+              })]
+            }));
+          }
+        });
+      });
+    });
+    return paragraphs;
+  }
+
+  document.getElementById('pdfToWordBtn').addEventListener('click', async () => {
+    if (!window.docx || !window.docx.Document) {
+      alert('Word dönüştürücü henüz yüklenmedi. Lütfen birkaç saniye bekleyip tekrar deneyin.');
+      return;
+    }
+    showLoading('DOCX (Word) Hazırlanıyor...');
+    try {
+      const { Document, Packer, Paragraph, TextRun } = window.docx;
+      let paragraphs = [], totalLen = 0;
+
+      // PDF sayfalarından metin çek (varsa)
+      if (pdfDoc) {
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const page = await pdfDoc.getPage(i);
+          const tc = await page.getTextContent();
+          let lastY = -1, pageText = '';
+          tc.items.forEach(item => {
+            if (lastY !== item.transform[5] && lastY !== -1) pageText += '\n';
+            pageText += item.str; lastY = item.transform[5];
+          });
+          const clean = sanitizeTextForXML(pageText);
+          totalLen += clean.replace(/\s/g, '').length;
+          clean.split('\n').forEach(line => {
+            if (line.trim()) paragraphs.push(new Paragraph({ children: [new TextRun(line.trim())] }));
+          });
+          if (i < pdfDoc.numPages && paragraphs.length > 0)
+            paragraphs.push(new Paragraph({ pageBreakBefore: true }));
+        }
+      }
+
+      // DOM metin katmanlarından (eklenen yazılar + boş sayfa yazıları) topla
+      const domParagraphs = collectDomTextParagraphs(Paragraph, TextRun);
+      if (domParagraphs.length > 0) {
+        if (paragraphs.length > 0) paragraphs.push(new Paragraph({ children: [new TextRun('')] }));
+        paragraphs.push(...domParagraphs);
+        totalLen += domParagraphs.length * 5; // sayım için
+      }
+
+      if (totalLen < 1 || !paragraphs.length) {
+        alert('Yazılacak metin bulunamadı. Sayfaya metin ekleyin veya metin içeren bir PDF yükleyin.');
+        hideLoading(); return;
+      }
+
+      const doc = new Document({ sections: [{ properties: {}, children: paragraphs }] });
+      const blob = await Packer.toBlob(doc);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'MuGol_Word_Ceviri.docx'; a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (err) { console.error(err); alert('Çeviri hatası: ' + err.message); }
+    hideLoading();
+  });
+
+  // ─── PDF İNDİR ───
+  document.getElementById('downloadBtn').addEventListener('click', async () => {
+    const wrappers = document.querySelectorAll('.pdf-page-wrapper');
+    if (!wrappers.length) return alert('İndirilecek sayfa yok!');
+    showLoading('PDF Hazırlanıyor...');
+
+    // Önce metin ve resim katmanlarını seçimsiz yap
+    deselectAllTextNodes();
+    deselectAllImageNodes();
+
+    setTimeout(async () => {
+      const { jsPDF } = window.jspdf; let pdf = null;
+      for (let i = 0; i < wrappers.length; i++) {
+        const pc = wrappers[i].querySelector('.pdf-canvas');
+        const dc = wrappers[i].querySelector('.draw-layer');
+        const tlc = wrappers[i].querySelector('.text-layer-container');
+
+        const tmp = document.createElement('canvas');
+        tmp.width = pc.width; tmp.height = pc.height;
+        const tc = tmp.getContext('2d');
+        tc.drawImage(pc, 0, 0); tc.drawImage(dc, 0, 0);
+
+        // Metin ve resim katmanlarını canvas'a çiz
+        if (tlc) {
+          // — Resim node'ları —
+          const imgNodes = tlc.querySelectorAll('.image-node');
+          imgNodes.forEach(inode => {
+            const imgEl = inode.querySelector('img');
+            if (!imgEl) return;
+            const lPct = parseFloat(inode.style.left) / 100;
+            const tPct = parseFloat(inode.style.top)  / 100;
+            const tlcRect = tlc.getBoundingClientRect();
+            const scaleX = tmp.width  / tlcRect.width;
+            const scaleY = tmp.height / tlcRect.height;
+            const xPx = lPct * tmp.width;
+            const yPx = tPct * tmp.height;
+            const wPx = inode.offsetWidth  * scaleX;
+            const hPx = inode.offsetHeight * scaleY;
+            tc.save();
+            tc.globalAlpha = parseFloat(imgEl.style.opacity || 1);
+            // flip transform
+            const tr = imgEl.style.transform || '';
+            const fH = tr.includes('scaleX(-1)');
+            const fV = tr.includes('scaleY(-1)');
+            if (fH || fV) {
+              tc.translate(xPx + (fH ? wPx : 0), yPx + (fV ? hPx : 0));
+              tc.scale(fH ? -1 : 1, fV ? -1 : 1);
+              tc.drawImage(imgEl, 0, 0, wPx, hPx);
+            } else {
+              tc.drawImage(imgEl, xPx, yPx, wPx, hPx);
+            }
+            tc.restore();
+          });
+
+          // — Metin node'ları —
+          const nodes = tlc.querySelectorAll('.text-node');
+          nodes.forEach(node => {
+            const content = node.querySelector('.text-content');
+            if (!content || !content.textContent.trim()) return;
+
+            // pozisyon % → piksel
+            const lPct = parseFloat(node.style.left) / 100;
+            const tPct = parseFloat(node.style.top) / 100;
+            const xPx = lPct * tmp.width;
+            const yPx = tPct * tmp.height;
+
+            // font hesapla
+            const tlcRect = tlc.getBoundingClientRect();
+            const scale = tmp.width / tlcRect.width;
+            const cs = window.getComputedStyle(content);
+            const fSize = parseFloat(cs.fontSize) * scale;
+            const fFamily = cs.fontFamily;
+            const fWeight = cs.fontWeight;
+            const fStyle = cs.fontStyle;
+            const color = cs.color;
+
+            tc.save();
+            tc.font = `${fStyle} ${fWeight} ${fSize}px ${fFamily}`;
+            tc.fillStyle = color;
+            tc.textBaseline = 'top';
+            tc.globalAlpha = 1.0;
+            tc.globalCompositeOperation = 'source-over';
+
+            const lineH = fSize * 1.45;
+            const lines = content.innerText.split('\n');
+            lines.forEach((line, li) => {
+              tc.fillText(line, xPx + 4 * scale, yPx + 4 * scale + li * lineH);
+            });
+            tc.restore();
+          });
+        }
+
+        const img = tmp.toDataURL('image/jpeg', 0.95);
+        const ori = tmp.width > tmp.height ? 'l' : 'p';
+        if (i === 0) pdf = new jsPDF({ orientation: ori, unit: 'px', format: [tmp.width, tmp.height] });
+        else pdf.addPage([tmp.width, tmp.height], ori);
+        pdf.addImage(img, 'JPEG', 0, 0, tmp.width, tmp.height);
+      }
+      pdf.save('MuGol_Duzenlenmis.pdf');
+      hideLoading();
+    }, 150);
+  });
+
+  // ─── RESİM → PDF ───
+  const readFileAsDataURL = f => new Promise(res => { const r = new FileReader(); r.onload = e => res(e.target.result); r.readAsDataURL(f); });
+  const loadImage = src => new Promise(res => { const i = new Image(); i.onload = () => res(i); i.src = src; });
+
+  document.getElementById('imgToPdfUpload').addEventListener('change', async function(e) {
+    const files = e.target.files;
+    if (!files || !files.length) return;
+    showLoading('Resimler PDF\'e Çevriliyor...');
+    try {
+      const { jsPDF } = window.jspdf; let pdf = null;
+      for (let i = 0; i < files.length; i++) {
+        const data = await readFileAsDataURL(files[i]);
+        const img = await loadImage(data);
+        const ori = img.width > img.height ? 'l' : 'p';
+        if (i === 0) pdf = new jsPDF(ori, 'px', [img.width, img.height]);
+        else pdf.addPage([img.width, img.height], ori);
+        pdf.addImage(img.src, 'JPEG', 0, 0, img.width, img.height);
+      }
+      const ab = pdf.output('arraybuffer');
+      pdfjsLib.getDocument(ab).promise.then(pdfData => {
+        pdfDoc = pdfData; pagesContainer.innerHTML = ''; undoStack = [];
+        currentZoom = 1.0; document.getElementById('zoom-level').textContent = '100%';
+        document.getElementById('doc-title-display').textContent = files[0].name + ' (ve diğerleri)';
+        renderAllPages().then(() => { hideLoading(); checkEmpty(); updateStatus(); });
+      });
+    } catch (err) { alert("Resimler PDF'e çevrilirken hata oluştu."); hideLoading(); }
+    e.target.value = '';
+  });
+
+  // ─── RESİM / DAMGA ───
+  document.getElementById('imageUpload').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      const imgSrc = ev.target.result;
+      // Sayfaları bul — ilk sayfa veya en son görünen sayfa
+      const wrappers = document.querySelectorAll('.pdf-page-wrapper');
+      if (!wrappers.length) return alert('Önce bir sayfa ekleyin!');
+      // Görünür olan ilk sayfanın ortasına ekle
+      let targetTlc = null;
+      for (const w of wrappers) {
+        const rect = w.getBoundingClientRect();
+        if (rect.top < window.innerHeight && rect.bottom > 0) {
+          targetTlc = w.querySelector('.text-layer-container');
+          break;
+        }
+      }
+      if (!targetTlc) targetTlc = wrappers[0].querySelector('.text-layer-container');
+      // Sayfanın ortasına yerleştir
+      createImageNode(targetTlc, imgSrc, 35, 35);
+      // Stamp aracını aktif et (görsel geri bildirim)
+      loadedStampImage = { src: imgSrc };
+      document.querySelectorAll('#toolbar .tb-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tool_stamp').classList.add('active');
+      currentTool = 'stamp';
+      workspace.classList.remove('pan-mode', 'drawing-mode', 'text-mode');
+      workspace.classList.add('drawing-mode');
+      document.querySelectorAll('.text-layer-container').forEach(tlc => { tlc.style.pointerEvents = 'auto'; });
+      updateStatus();
+    };
+    r.readAsDataURL(file);
+    e.target.value = '';
+  });
+
+  // ─── INIT ───
+  checkEmpty();
+  updateStatus();
+</script>
+</body>
+</html>
